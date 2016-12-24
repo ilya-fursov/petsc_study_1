@@ -26,15 +26,23 @@ int main(int argc,char **argv)
 	double p1, p2, p3;
 	DM da;
 
-	PetscViewer view;
+	// Set up the viewers
+	PetscViewer view, vascii;
 	PetscDraw draw;
 	ierr = PetscViewerCreate(PETSC_COMM_WORLD, &view); CHKERRQ(ierr);
 	ierr = PetscViewerSetType(view,PETSCVIEWERDRAW); CHKERRQ(ierr);
+
+	ierr = PetscViewerCreate(PETSC_COMM_WORLD, &vascii); CHKERRQ(ierr);
+	ierr = PetscViewerSetType(vascii,PETSCVIEWERASCII); CHKERRQ(ierr);
+
 	//ierr = PetscViewerDrawSetPause(view, p1); CHKERRQ(ierr);
 	ierr = PetscViewerDrawSetHold(view, 1); CHKERRQ(ierr);
 	ierr = PetscViewerDrawGetDraw(view, 0, &draw); CHKERRQ(ierr);
 	ierr = PetscDrawResizeWindow(draw, 800, 800);
 
+	ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "acsii_viewer.txt", &vascii);
+
+	// Get rank, size, options
 	ierr  = MPI_Comm_rank(PETSC_COMM_WORLD,&rank); CHKERRQ(ierr);
 	ierr  = MPI_Comm_size(PETSC_COMM_WORLD,&size); CHKERRQ(ierr);
 	ierr  = PetscOptionsGetInt(NULL,NULL,"-n",&N,NULL); CHKERRQ(ierr);
@@ -48,7 +56,9 @@ int main(int argc,char **argv)
 	ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_GHOSTED, DM_BOUNDARY_GHOSTED, DMDA_STENCIL_STAR, N, N, PETSC_DECIDE, PETSC_DECIDE,
 		  3, 1, NULL, NULL, &da); CHKERRQ(ierr);
 
-	ierr = DMView(da, view); CHKERRQ(ierr);
+	ierr = DMView(da, view); CHKERRQ(ierr);		// view DMDA
+	ierr = PetscViewerASCIIPrintf(vascii, "DMDA object:\n"); CHKERRQ(ierr);
+	ierr = DMView(da, vascii); CHKERRQ(ierr);
 	ierr = PetscSleep(p1); CHKERRQ(ierr);
 
 	// create vectors
@@ -69,14 +79,19 @@ int main(int argc,char **argv)
 		}
 	ierr = DMDAVecRestoreArray(da, ga, &x); CHKERRQ(ierr);
 
-
+	ierr = PetscViewerASCIIPrintf(vascii, "\nGlobal vector:\n"); CHKERRQ(ierr);
 	ierr = VecView(ga, view); CHKERRQ(ierr);
+	ierr = VecView(ga, vascii); CHKERRQ(ierr);
 	ierr = PetscSleep(p2); CHKERRQ(ierr);
 
+	ierr = PetscViewerASCIIPrintf(vascii, "\nLocal vector:\n"); CHKERRQ(ierr);
 	ierr = VecView(la, view); CHKERRQ(ierr);
+	ierr = VecView(la, vascii); CHKERRQ(ierr);
 	ierr = PetscSleep(p3); CHKERRQ(ierr);
 
+	// Destroy objects
 	ierr = PetscViewerDestroy(&view); CHKERRQ(ierr);
+	ierr = PetscViewerDestroy(&vascii); CHKERRQ(ierr);
 	ierr = DMDestroy(&da); CHKERRQ(ierr);
 	ierr = VecDestroy(&ga); CHKERRQ(ierr);
 	ierr = VecDestroy(&la); CHKERRQ(ierr);
